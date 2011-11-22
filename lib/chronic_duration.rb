@@ -1,5 +1,43 @@
 require 'numerizer' unless defined?(Numerizer)
 module ChronicDuration
+  FORMATS = {
+    :micro => {
+      :names => {:years => 'y', :months => 'm', :days => 'd', :hours => 'h', :minutes => 'm', :seconds => 's'},
+      :joiner => ''
+    },
+    
+    :short => {
+      :names => {:years => 'y', :months => 'm', :days => 'd', :hours => 'h', :minutes => 'm', :seconds => 's'}
+    },
+    
+    :default => {
+      :names => {:years => ' yr', :months => ' mo', :days => ' day', :hours => ' hr', :minutes => ' min', :seconds => ' sec',
+      :pluralize => true}
+    },
+    
+    :long => {
+      :names => {:years => ' year', :months => ' month', :days => ' day', :hours => ' hour', :minutes => ' minute', :seconds => ' second', 
+      :pluralize => true}
+    },
+    
+    :chrono => {
+      :names => {:years => ':', :months => ':', :days => ':', :hours => ':', :minutes => ':', :seconds => ':', :keep_zero => true},
+      :joiner => '',
+      :process => lambda do |str|
+        # Pad zeros
+        # Get rid of lead off times if they are zero
+        # Get rid of lead off zero
+        # Get rid of trailing :
+        str.gsub(/\b\d\b/) { |d| ("%02d" % d) }.gsub(/^(00:)+/, '').gsub(/^0/, '').gsub(/:$/, '')
+      end
+    },
+    
+    :iso8601 => {
+      :names => {:years => 'Y', :months => 'M', :days => 'D', :hours => 'H', :minutes => 'M', :seconds => 'S'},
+      :joiner => '',
+      :process => lambda {|str| "P#{str}" }
+    }
+  }
   extend self
   
   class DurationParseError < StandardError
@@ -15,6 +53,14 @@ module ChronicDuration
     @@raise_exceptions = !!value
   end
   
+  @@rates = {
+    :minutes  => 60,
+    :hours    => 60 * 60,
+    :days     => 60 * 60 * 24,
+    :months   => 60 * 60 * 24 * 30,
+    :years    => 60 * 60 * 24 * 365.25
+  }
+  
   # Given a string representation of elapsed time,
   # return an integer (or float, if fractions of a
   # second are input)
@@ -26,90 +72,51 @@ module ChronicDuration
   # Given an integer and an optional format,
   # returns a formatted string representing elapsed time
   def output(seconds, opts = {})
+    date = { :years => 0, :months => 0, :days => 0, :hours => 0, :minutes => 0 }
     
-    opts[:format] ||= :default
-    
-    years = months = days = hours = minutes = 0
+    # drop tail zero (5.0 => 5)
+    if seconds.is_a?(Float) && seconds % 1 == 0.0
+      seconds = seconds.to_i
+    end
     
     decimal_places = seconds.to_s.split('.').last.length if seconds.is_a?(Float)
-
-    if seconds >= 60
-      minutes = (seconds / 60).to_i 
-      seconds = seconds % 60
-      if minutes >= 60
-        hours = (minutes / 60).to_i
-        minutes = (minutes % 60).to_i
-        if hours >= 24
-          days = (hours / 24).to_i
-          hours = (hours % 24).to_i
-          if days >= 30
-            months = (days / 30).to_i
-            days = (days % 30).to_i
-            if months >= 12
-              years = (months / 12).to_i
-              months = (months % 12).to_i
-            end
-          end
-        end
-      end
-    end
     
-    joiner = ' '
-    process = nil
-    
-    case opts[:format]
-    when :micro
-      dividers = { 
-        :years => 'y', :months => 'm', :days => 'd', :hours => 'h', :minutes => 'm', :seconds => 's' }
-      joiner = ''
-    when :short
-      dividers = { 
-        :years => 'y', :months => 'm', :days => 'd', :hours => 'h', :minutes => 'm', :seconds => 's' }
-    when :default 
-      dividers = {
-        :years => ' yr', :months => ' mo', :days => ' day', :hours => ' hr', :minutes => ' min', :seconds => ' sec',
-        :pluralize => true }
-    when :long 
-      dividers = {
-        :years => ' year', :months => ' month', :days => ' day', :hours => ' hour', :minutes => ' minute', :seconds => ' second', 
-        :pluralize => true }
-    when :chrono
-      dividers = {
-        :years => ':', :months => ':', :days => ':', :hours => ':', :minutes => ':', :seconds => ':', :keep_zero => true }
-      process = lambda do |str|
-        # Pad zeros
-        # Get rid of lead off times if they are zero
-        # Get rid of lead off zero
-        # Get rid of trailing :
-        str.gsub(/\b\d\b/) { |d| ("%02d" % d) }.gsub(/^(00:)+/, '').gsub(/^0/, '').gsub(/:$/, '')
-      end
-      joiner = ''
+    @@rates.to_a.sort_by(&:last).reverse.each do |key, value|
+      date[key] = (seconds / value).to_i
+      seconds = seconds % value
     end
+    date[:seconds] = seconds
+    
+    format_info = FORMATS[opts[:format]] || FORMATS[:default]
+    dividers = format_info[:names]
+    joiner = format_info[:joiner] || ' '
+    process = format_info[:joiner] || nil
     
     result = []
     [:years, :months, :days, :hours, :minutes, :seconds].each do |t|
-      num = eval(t.to_s)
-      num = ("%.#{decimal_places}f" % num) if num.is_a?(Float) && t == :seconds 
+      num = date[t]
+      num = ("%.#{decimal_places}f" % num) if num.is_a?(Float) && t == :seconds
       result << humanize_time_unit( num, dividers[t], dividers[:pluralize], dividers[:keep_zero] )
     end
 
-    result = result.join(joiner).squeeze(' ').strip
-    
-    if process
-      result = process.call(result)
+    # insert 'T' if its iso8601 && and time is not zero
+    if opts[:format] == :iso8601 && !result[3..5].join.empty?
+      result.insert(3, 'T') 
     end
     
+    result = result.join(joiner).squeeze(' ').strip
+    result = format_info[:process].call(result) if format_info[:process]
+    
     result.length == 0 ? nil : result
-
   end
   
 private
   
   def humanize_time_unit(number, unit, pluralize, keep_zero)
-    return '' if number == 0 && !keep_zero
+    return '' if number.to_s == '0' && !keep_zero
     res = "#{number}#{unit}"
     # A poor man's pluralizer
-    res << 's' if !(number == 1) && pluralize
+    res << 's' if !(number.to_s == '1') && pluralize
     res
   end
   
@@ -230,9 +237,4 @@ private
   def join_words
     ['and', 'with', 'plus']
   end
-  
-  def white_list
-    self.mappings.map {|k, v| k}
-  end
-  
 end

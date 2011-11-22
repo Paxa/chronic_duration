@@ -1,4 +1,6 @@
 require 'chronic_duration'
+require 'active_support/core_ext/numeric/time'
+require 'active_support/core_ext/integer/time'
 
 describe ChronicDuration, '.parse' do
   
@@ -60,6 +62,11 @@ describe ChronicDuration, '.output' do
   it "should return nil if the input can't be parsed" do
     ChronicDuration.parse('gobblygoo').should be_nil
   end
+  min   = 60
+  hour  = 60 * min
+  day   = 24 * hour
+  month = day * 30
+  year  = (day * 365.25).to_i
   
   @exemplars = { 
     #(0) => 
@@ -70,61 +77,86 @@ describe ChronicDuration, '.output' do
         #:long     => '0 seconds',
         #:chrono   => '0'
       #},
-    (60 + 20) => 
+    (min + 20) => 
       { 
         :micro    => '1m20s',
         :short    => '1m 20s',
         :default  => '1 min 20 secs',
         :long     => '1 minute 20 seconds',
-        :chrono   => '1:20'
+        :chrono   => '1:20',
+        :iso8601  => 'PT1M20S'
       },
-    (60 + 20.51) => 
+    (min + 20.51) => 
       { 
         :micro    => '1m20.51s',
         :short    => '1m 20.51s',
         :default  => '1 min 20.51 secs',
         :long     => '1 minute 20.51 seconds',
-        :chrono   => '1:20.51'
+        :chrono   => '1:20.51',
+        :iso8601  => 'PT1M20.51S'
       },
-    (60 + 20.51928) => 
+    (min + 20.51928) => 
       { 
         :micro    => '1m20.51928s',
         :short    => '1m 20.51928s',
         :default  => '1 min 20.51928 secs',
         :long     => '1 minute 20.51928 seconds',
-        :chrono   => '1:20.51928'
+        :chrono   => '1:20.51928',
+        :iso8601  => 'PT1M20.51928S'
       },
-    (4 * 3600 + 60 + 1) => 
+    (4 * hour + 1 * min + 1) => 
       { 
         :micro    => '4h1m1s',
         :short    => '4h 1m 1s',
         :default  => '4 hrs 1 min 1 sec',
         :long     => '4 hours 1 minute 1 second',
-        :chrono   => '4:01:01'
+        :chrono   => '4:01:01',
+        :iso8601  => 'PT4H1M1S'
       },
-    (2 * 3600 + 20 * 60) => 
+    (2 * hour + 20 * min) => 
       { 
         :micro    => '2h20m',
         :short    => '2h 20m',
         :default  => '2 hrs 20 mins',
         :long     => '2 hours 20 minutes',
-        :chrono   => '2:20'
+        :chrono   => '2:20',
+        :iso8601  => 'PT2H20M'
       },
-    (2 * 3600 + 20 * 60) => 
+    (2 * hour + 20 * min) => 
       { 
         :micro    => '2h20m',
         :short    => '2h 20m',
         :default  => '2 hrs 20 mins',
         :long     => '2 hours 20 minutes',
-        :chrono   => '2:20:00'
+        :chrono   => '2:20:00',
+        :iso8601  => 'PT2H20M'
       },
-    (6 * 30 * 24 * 3600 + 24 * 3600) => 
+    (6 * month + 1 * day) => 
       { 
         :micro    => '6m1d',
         :short    => '6m 1d',
         :default  => '6 mos 1 day',
         :long     => '6 months 1 day',
-        :chrono   => '6:01:00:00:00' # Yuck. FIXME
+        :chrono   => '6:01:00:00:00', # Yuck. FIXME
+        :iso8601  => 'P6M1D'
+      },
+    (2*year + 6*month + 1*day + 5*hour + 20*min + 13) => 
+      { 
+        :micro    => '2y6m1d5h20m13s',
+        :short    => '2y 6m 1d 5h 20m 13s',
+        :default  => '2 yrs 6 mos 1 day 5 hrs 20 mins 13 secs', # 13 sex
+        :long     => '2 years 6 months 1 day 5 hours 20 minutes 13 seconds',
+        :chrono   => '2:06:01:05:20:13', # Yuck. FIXME
+        :iso8601  => 'P2Y6M1DT5H20M13S'
+      },
+    (2.years + 6.months + 1.day + 5.hours + 20.minutes + 13.seconds) => 
+      { 
+        :micro    => '2y6m1d5h20m13s',
+        :short    => '2y 6m 1d 5h 20m 13s',
+        :default  => '2 yrs 6 mos 1 day 5 hrs 20 mins 13 secs', # 13 sex
+        :long     => '2 years 6 months 1 day 5 hours 20 minutes 13 seconds',
+        :chrono   => '2:06:01:05:20:13', # Yuck. FIXME
+        :iso8601  => 'P2Y6M1DT5H20M13S'
       }
   }
   
@@ -139,8 +171,6 @@ describe ChronicDuration, '.output' do
   it "should use the default format when the format is not specified" do
     ChronicDuration.output(2 * 3600 + 20 * 60).should == '2 hrs 20 mins'
   end
-  
-  
 end
 
 
