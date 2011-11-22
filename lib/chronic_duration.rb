@@ -1,41 +1,40 @@
 require 'numerizer' unless defined?(Numerizer)
 module ChronicDuration
   FORMATS = {
-    :micro => {
-      :names => {:years => 'y', :months => 'm', :days => 'd', :hours => 'h', :minutes => 'm', :seconds => 's'},
-      :joiner => ''
+    micro: {
+      names: {years: 'y', months: 'm', days: 'd', hours: 'h', minutes: 'm', seconds: 's'},
+      joiner: ''
     },
     
-    :short => {
-      :names => {:years => 'y', :months => 'm', :days => 'd', :hours => 'h', :minutes => 'm', :seconds => 's'}
+    short: {
+      names: {years: 'y', months: 'm', days: 'd', hours: 'h', minutes: 'm', seconds: 's'}
     },
     
-    :default => {
-      :names => {:years => ' yr', :months => ' mo', :days => ' day', :hours => ' hr', :minutes => ' min', :seconds => ' sec',
-      :pluralize => true}
+    default: {
+      names: {years: ' yr', months: ' mo', days: ' day', hours: ' hr', minutes: ' min', seconds: ' sec',
+      pluralize: true}
     },
     
-    :long => {
-      :names => {:years => ' year', :months => ' month', :days => ' day', :hours => ' hour', :minutes => ' minute', :seconds => ' second', 
-      :pluralize => true}
+    long: {
+      names: {years: ' year', months: ' month', days: ' day', hours: ' hour', minutes: ' minute', seconds: ' second', 
+      pluralize: true}
     },
     
-    :chrono => {
-      :names => {:years => ':', :months => ':', :days => ':', :hours => ':', :minutes => ':', :seconds => ':', :keep_zero => true},
-      :joiner => '',
-      :process => lambda do |str|
-        # Pad zeros
-        # Get rid of lead off times if they are zero
-        # Get rid of lead off zero
-        # Get rid of trailing :
-        str.gsub(/\b\d\b/) { |d| ("%02d" % d) }.gsub(/^(00:)+/, '').gsub(/^0/, '').gsub(/:$/, '')
-      end
+    chrono: {
+      names: {years: ':', months: ':', days: ':', hours: ':', minutes: ':', seconds: ':', keep_zero: true},
+      joiner: '',
+      
+      # Pad zeros
+      # Get rid of lead off times if they are zero
+      # Get rid of lead off zero
+      # Get rid of trailing :
+      process: lambda {|str| str.gsub(/\b\d\b/) { |d| ("%02d" % d) }.gsub(/^(00:)+/, '').gsub(/^0/, '').gsub(/:$/, '') }
     },
     
-    :iso8601 => {
-      :names => {:years => 'Y', :months => 'M', :days => 'D', :hours => 'H', :minutes => 'M', :seconds => 'S'},
-      :joiner => '',
-      :process => lambda {|str| "P#{str}" }
+    iso8601: {
+      names: {years: 'Y', months: 'M', days: 'D', hours: 'H', minutes: 'M', seconds: 'S'},
+      joiner: '',
+      process: lambda {|str| "P#{str}" }
     }
   }
   extend self
@@ -54,11 +53,11 @@ module ChronicDuration
   end
   
   @@rates = {
-    :minutes  => 60,
-    :hours    => 60 * 60,
-    :days     => 60 * 60 * 24,
-    :months   => 60 * 60 * 24 * 30,
-    :years    => 60 * 60 * 24 * 365.25
+    minutes:  60,
+    hours:    60 * 60,
+    days:     60 * 60 * 24,
+    months:   60 * 60 * 24 * 30,
+    years:    60 * 60 * 24 * 365.25
   }
   
   # Given a string representation of elapsed time,
@@ -72,7 +71,7 @@ module ChronicDuration
   # Given an integer and an optional format,
   # returns a formatted string representing elapsed time
   def output(seconds, opts = {})
-    date = { :years => 0, :months => 0, :days => 0, :hours => 0, :minutes => 0 }
+    date = {years: 0, months: 0, days: 0, hours: 0, minutes: 0}
     
     # drop tail zero (5.0 => 5)
     if seconds.is_a?(Float) && seconds % 1 == 0.0
